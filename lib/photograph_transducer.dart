@@ -6,7 +6,7 @@ import 'package:flutter/material.dart';
 import 'package:image/image.dart' as img;
 import 'package:scoped_model/scoped_model.dart';
 
-import 'package:photoducer/pixel_buffer.dart';
+import 'package:persistent_canvas/pixel_buffer.dart';
 
 class OrthogonalState {
   Paint paint = Paint();
