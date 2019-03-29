@@ -1,5 +1,5 @@
 name: persistent_canvas
-version: 1.0.1+1
+version: 1.0.0+0
 description: Provides PersistentCanvas and PixelBuffer 
 author: Green Appers, Inc. <greenappers@gmail.com>
 homepage: https://github.com/GreenAppers/persistent_canvas
