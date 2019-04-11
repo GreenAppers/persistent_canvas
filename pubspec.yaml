@@ -1,5 +1,5 @@
 name: persistent_canvas
-version: 1.0.0+0
+version: 1.0.1+1
 description: Provides PersistentCanvas and PixelBuffer 
 author: Green Appers, Inc. <greenappers@gmail.com>
 homepage: https://github.com/GreenAppers/persistent_canvas
@@ -9,6 +9,7 @@ environment:
   sdk: ">=2.1.0 <3.0.0"
 
 dependencies:
+  busy_model: ^1.0.0
   flutter:
     sdk: flutter
   image: ^2.0.7

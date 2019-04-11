@@ -3,14 +3,17 @@ import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
 
+import 'package:busy_model/busy_model.dart';
 import 'package:scoped_model/scoped_model.dart';
 
 import 'package:persistent_canvas/pixel_buffer.dart';
 import 'package:persistent_canvas/photograph_transducer.dart';
 
 class PersistentCanvas implements Canvas {
-  final PhotographTransducer model = PhotographTransducer();
+  final PhotographTransducer model;
   int saveCount = 1;
+
+  PersistentCanvas({BusyModel busy}) : model=PhotographTransducer(busy: busy);
 
   @override
   void clipPath(Path path, { bool doAntiAlias = true }) {

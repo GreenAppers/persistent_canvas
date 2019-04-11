@@ -36,20 +36,26 @@ class PixelBuffer extends ImageStreamCompleter {
     setDownloadedState((img.Image x) {});
   }
 
-  void transformDownloaded(ImgFilter tf, {int userVersion=1}) {
+  void transformDownloaded(ImgFilter tf, {int userVersion=1, VoidCallback done}) {
     assert(transformingUserVersion == 0);
     transformingUserVersion = userVersion;
-    if (downloadedVersion >= uploadedVersion) return transformDownloadedComplete(tf);
+    if (downloadedVersion >= uploadedVersion) return transformDownloadedState(tf, done);
     downloadUploaded((img.Image x) {
       downloadUploadedComplete(x);
-      transformDownloadedComplete(tf);
+      transformDownloadedState(tf, done);
     });
   }
 
-  void transformDownloadedComplete(ImgFilter tf) {
+  void transformDownloadedState(ImgFilter tf, VoidCallback done) async {
+    // If we could move Objects between Isolates we would use compute() here
+    setDownloadedState((img.Image x){ downloaded = tf(x); });
+    transformDownloadedComplete(done);
+  }
+
+  void transformDownloadedComplete(VoidCallback done) {
     transformedUserVersion = transformingUserVersion;
     transformingUserVersion = 0;
-    setDownloadedState((img.Image x) { downloaded = tf(x); });
+    done();
   }
 
   void paintUploaded({CustomPainter painter, ui.Image startingImage, int userVersion=1}) {

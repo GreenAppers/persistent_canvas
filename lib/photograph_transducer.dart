@@ -1,8 +1,10 @@
+import 'dart:async';
 import 'dart:math';
 import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
 
+import 'package:busy_model/busy_model.dart';
 import 'package:image/image.dart' as img;
 import 'package:scoped_model/scoped_model.dart';
 
@@ -33,23 +35,22 @@ class Input {
   Object value;
 
   Input(this.transform, this.value);
+
+  bool get processing => value == null && (transform is DownloadedStateTransform || transform is BackendTextureStateTransform);
 }
 
 class PhotographTransducer extends Model {
   int version;
   PixelBuffer state;
-  VoidCallback updateStateMethod;
+  VoidCallback updateUploadedStateMethod;
   OrthogonalState orthogonalState;
   List<Input> input;
+  final BusyModel busy;
+  List<ImageCallback> renderDone = <ImageCallback>[];
 
-  PhotographTransducer() {
-    updateStateMethod = updateStatePaintDelta;
+  PhotographTransducer({this.busy}) {
+    updateUploadedStateMethod = updateUploadedStatePaintDelta;
     reset();
-  }
-
-  bool isProcessing() {
-    return input.length > 0 && input.last.value == null &&
-      (input.last.transform is DownloadedStateTransform || input.last.transform is BackendTextureStateTransform);
   }
 
   void reset([ui.Image image]) {
@@ -62,8 +63,15 @@ class PhotographTransducer extends Model {
     } else {
       state = PixelBuffer(Size(256, 256));
     }
-    state.addListener(updatedState);
+    state.addListener(updatedUploadedState);
     orthogonalState = OrthogonalState();
+  }
+
+  Future<ui.Image> getRenderedImage() async {
+    if (version == state.paintedUserVersion) return state.uploaded;
+    Completer<ui.Image> completer = Completer(); 
+    renderDone.add((ui.Image result) { completer.complete(result); });
+    return completer.future;
   }
 
   void changeColor(Color color) {
@@ -71,7 +79,6 @@ class PhotographTransducer extends Model {
   }
 
   void addInput(Input x) {
-    assert(!isProcessing());
     if (version < input.length) input.removeRange(version, input.length);
     input.add(x);
     version++;
@@ -89,15 +96,16 @@ class PhotographTransducer extends Model {
     updateState();
   }
 
-  void addDownloadedTransform(ImgFilter filter) {
+  void addDownloadedTransform(DownloadedStateTransform filter) {
     addInput(Input(filter, null));
-    if (state.paintingUserVersion == 0)
-      startProcessing();
+    updateState();
   }
 
-  void startProcessing() {
-    assert(state.paintedUserVersion == version-1);
-    state.transformDownloaded(input.last.transform, userVersion: version);
+  void addList(List<Input> list, {int startIndex}) {
+    for(var i = startIndex == null ? 0 : startIndex; i < list.length; i++) {
+      var x = list[i];
+      addInput(Input(x.transform, x.transform is UploadedStateTransform ? x.value : null));
+    }
   }
 
   void walkVersion(int n) {
@@ -106,56 +114,93 @@ class PhotographTransducer extends Model {
     updateState();
   }
 
-  int transduce(Canvas canvas, Size size, {int startVersion=0, int endVersion}) {
+  int transduceUploaded(Canvas canvas, Size size, {int startVersion=0, int endVersion}) {
     if (startVersion == 0) orthogonalState = OrthogonalState();
     int i = startVersion;
     endVersion = endVersion == null ? version : min(endVersion, version);
     for (/**/; i < endVersion; i++) {
       var x = input[i];
-      if (x.value == null) return i;
+      if (x.value == null) break;
       if (x.transform is UploadedStateTransform) {
         (x.transform as UploadedStateTransform)(canvas, size, x.value);
       } else {
         canvas.drawImage(x.value, Offset(0, 0), orthogonalState.paint);
       }
     }
-    return endVersion;
+    return i;
+  }
+
+  int findTransduceUploadedVersion({int startVersion=0, int endVersion}) {
+    int i = startVersion;
+    endVersion = endVersion == null ? version : min(endVersion, version);
+    for (/**/; i < endVersion; i++) {
+      var x = input[i];
+      if (x.value == null) break;
+    }
+    return i;
   }
 
   void updateState() {
-    if (version == state.paintedUserVersion || isProcessing()) return;
-    if (version < state.paintedUserVersion) return updateStateRepaint();
-    else updateStateMethod();
-  }
- 
-  void updatedState(ImageInfo image, bool synchronousCall) {
-    if (isProcessing()) {
-      if (state.transformedUserVersion == version)
-        input.last.value = state.uploaded;
-      else
-        startProcessing();
+    if (version == state.paintedUserVersion) return;
+    if (state.paintingUserVersion != 0 || state.transformingUserVersion != 0 || state.uploadingVersion != 0) return;
+    if (version < state.paintedUserVersion) return updateUploadedStateRepaint();
+    var x = input[state.paintedUserVersion];
+    if (x.processing) {
+      updateDownloadedState(state.paintedUserVersion + 1, x.transform);
+    } else {
+      updateUploadedStateMethod();
     }
-    notifyListeners();
-    updateState();
   }
 
-  void updateStateRepaint() {
-    if (state.paintingUserVersion != 0) return;
+  void updateDownloadedState(int newVersion, DownloadedStateTransform tf) {
+    if (busy != null) busy.setBusy('Processing');
+    state.transformDownloaded(tf,
+      userVersion: newVersion,
+      done: updatedDownloadedState
+    );
+  }
+
+  void updatedDownloadedState() {
+    if (busy != null) busy.reset();
+  }
+ 
+  void updatedUploadedState(ImageInfo image, bool synchronousCall) {
+    if (state.paintedUserVersion < input.length) {
+      var x = input[state.paintedUserVersion];
+      if (x.processing) x.value = state.uploaded;
+    }
+
+    notifyListeners();
+
+    if (version == state.paintedUserVersion) {
+      for (int i = 0; i < renderDone.length; i++) {
+        renderDone[i](state.uploaded);
+      }
+      renderDone.clear();
+    } else {
+      updateState();
+    }
+  }
+
+  void updateUploadedStateRepaint() {
+    int newVersion = findTransduceUploadedVersion();
     state.paintUploaded(
-      userVersion: version,
+      userVersion: newVersion,
       painter: PhotographTransducerPainter(this,
-        endVersion: version,
+        endVersion: newVersion,
       ),
     );
   }
 
-  void updateStatePaintDelta() {
-    if (state.paintingUserVersion != 0) return;
+  void updateUploadedStatePaintDelta() {
+    int startVersion = state.paintedUserVersion;
+    int newVersion = findTransduceUploadedVersion(startVersion: startVersion);
+    assert(newVersion > startVersion);
     state.paintUploaded(
-      userVersion: version,
+      userVersion: newVersion,
       painter: PhotographTransducerPainter(this,
-        startVersion: max(0, state.paintedUserVersion-1),
-        endVersion: version,
+        startVersion: startVersion,
+        endVersion: newVersion,
       ),
       startingImage: state.uploaded,
     );
@@ -176,10 +221,13 @@ class PhotographTransducerPainter extends CustomPainter {
   }
 
   void paint(Canvas canvas, Size size) {
-    transducer.transduce(canvas, size,
+    int version = transducer.transduceUploaded(canvas, size,
       startVersion: startVersion,
       endVersion: endVersion,
     );
+    if (endVersion != null) {
+      assert(version == endVersion);
+    }
   }
 }
 
