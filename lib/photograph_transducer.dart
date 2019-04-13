@@ -27,6 +27,7 @@ class OrthogonalState {
 
 typedef PaintCallback = void Function(Paint);
 typedef UploadedStateTransform = void Function(Canvas, Size, Object);
+typedef UploadedCropTransform = ui.Image Function(ui.Image, Rect);
 typedef DownloadedStateTransform = img.Image Function(img.Image);
 typedef BackendTextureStateTransform = void Function(int);
 
@@ -44,6 +45,7 @@ class PhotographTransducer extends Model {
   PixelBuffer state;
   VoidCallback updateUploadedStateMethod;
   OrthogonalState orthogonalState;
+  Size initialSize;
   List<Input> input;
   final BusyModel busy;
   List<ImageCallback> renderDone = <ImageCallback>[];
@@ -63,6 +65,7 @@ class PhotographTransducer extends Model {
     } else {
       state = PixelBuffer(Size(256, 256));
     }
+    initialSize = state.size;
     state.addListener(updatedUploadedState);
     orthogonalState = OrthogonalState();
   }
@@ -91,6 +94,12 @@ class PhotographTransducer extends Model {
       updateState();
   }
 
+  void addCrop(Rect rect) {
+    UploadedCropTransform tf = (ui.Image x, Rect r) { return x; };
+    addInput(Input(tf, rect));
+    updateState();
+  }
+
   void addUploadedTransform(UploadedStateTransform transform, Object v) {
     addInput(Input(transform, v));
     updateState();
@@ -114,8 +123,16 @@ class PhotographTransducer extends Model {
     updateState();
   }
 
+  void setInitialState() {
+    orthogonalState = OrthogonalState();
+    if (state.size != initialSize) {
+      state.size = initialSize;
+      if (busy != null) busy.reset();
+    }
+  }
+
   int transduceUploaded(Canvas canvas, Size size, {int startVersion=0, int endVersion}) {
-    if (startVersion == 0) orthogonalState = OrthogonalState();
+    if (startVersion == 0) setInitialState();
     int i = startVersion;
     endVersion = endVersion == null ? version : min(endVersion, version);
     for (/**/; i < endVersion; i++) {
@@ -148,7 +165,16 @@ class PhotographTransducer extends Model {
     if (x.processing) {
       updateDownloadedState(state.paintedUserVersion + 1, x.transform);
     } else {
-      updateUploadedStateMethod();
+      if (x.transform is UploadedCropTransform) {
+        state.cropUploaded(
+          x.value,
+          userVersion: state.paintedUserVersion + 1
+        );
+        // Reset the "busy state" to trigger e.g. PhotoView rebuilds after resizing
+        if (busy != null) getRenderedImage().then((ui.Image x) { busy.reset(); });
+      } else {
+        updateUploadedStateMethod();
+      }
     }
   }
 

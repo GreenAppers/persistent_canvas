@@ -58,6 +58,17 @@ class PixelBuffer extends ImageStreamCompleter {
     done();
   }
 
+  void cropUploaded(Rect src, {Rect dst, Size newSize, int userVersion=1}) {
+    assert(paintingUserVersion == 0);
+    paintingUserVersion = userVersion;
+    if (dst == null) dst = Rect.fromLTWH(0, 0, src.width, src.height);
+    size = newSize != null ? newSize : Size(dst.width, dst.height);
+    ui.PictureRecorder recorder = ui.PictureRecorder();
+    Canvas canvas = Canvas(recorder);
+    canvas.drawImageRect(uploaded, src, dst, Paint());
+    recorder.endRecording().toImage(size.width.floor(), size.height.floor()).then(paintUploadedComplete);
+  }
+
   void paintUploaded({CustomPainter painter, ui.Image startingImage, int userVersion=1}) {
     assert(paintingUserVersion == 0);
     paintingUserVersion = userVersion;
