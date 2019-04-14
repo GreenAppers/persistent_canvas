@@ -1,3 +1,6 @@
+// Copyright 2019 Green Appers, Inc. All rights reserved.
+// Use of this source code is governed by a MIT-style license that can be found in the LICENSE file.
+
 import 'dart:async';
 import 'dart:typed_data';
 import 'dart:ui' as ui;
@@ -12,6 +15,11 @@ typedef ImageCallback = void Function(ui.Image);
 typedef ImgCallback = void Function(img.Image);
 typedef ImgFilter = img.Image Function(img.Image);
 
+/// The [PixelBuffer] class manages mutation versioning for images represented:
+///
+/// * In the 'uploaded' state by [ui.Image], which are suitable for rendering.
+/// * In the 'downloaded' state by [img.Image], which are accessible to Dart code.
+///
 class PixelBuffer extends ImageStreamCompleter {
   Size size;
   ui.Image uploaded;

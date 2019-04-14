@@ -1,3 +1,6 @@
+// Copyright 2019 Green Appers, Inc. All rights reserved.
+// Use of this source code is governed by a MIT-style license that can be found in the LICENSE file.
+
 import 'dart:typed_data';
 import 'dart:ui' as ui;
 
@@ -9,6 +12,7 @@ import 'package:scoped_model/scoped_model.dart';
 import 'package:persistent_canvas/pixel_buffer.dart';
 import 'package:persistent_canvas/photograph_transducer.dart';
 
+/// The [PersistentCanvas] class provides [Canvas] backed by [PhotographTransducer]
 class PersistentCanvas implements Canvas {
   final PhotographTransducer model;
   int saveCount = 1;
@@ -216,29 +220,73 @@ class PersistentCanvas implements Canvas {
   }
 }
 
+class PersistentCanvasLayers {
+  final BusyModel busy;
+  List<PersistentCanvas> layer;
+
+  PersistentCanvas get canvas => layer[0];
+
+  PersistentCanvasLayers({this.busy}) : layer = <PersistentCanvas>[ PersistentCanvas(busy: busy) ]; 
+}
+
 class PersistentCanvasWidget extends StatelessWidget {
   final PersistentCanvas canvas;
 
   PersistentCanvasWidget(this.canvas);
 
-  PhotographTransducer model() { return canvas.model; }
+  PhotographTransducer get model => canvas.model;
 
   @override
   Widget build(BuildContext context) {
     return Container(
-      width: canvas.model.state.size.width,
-      height: canvas.model.state.size.height,
+      width: model.state.size.width,
+      height: model.state.size.height,
       alignment: Alignment.topLeft,
       color: Colors.white,
       child: RepaintBoundary(
         child: ScopedModel<PhotographTransducer>(
-          model: canvas.model,
+          model: model,
           child: ScopedModelDescendant<PhotographTransducer>(
             builder: (context, child, cart) => CustomPaint(
-              painter: PixelBufferPainter(canvas.model.state)
+              painter: PixelBufferPainter(model.state)
             ),
           ),
         ),
+      ),
+    );
+  }
+}
+
+class PersistentCanvasLayersWidget extends StatelessWidget {
+  final PersistentCanvasLayers layers;
+
+  PersistentCanvasLayersWidget(this.layers);
+
+  @override
+  Widget build(BuildContext context) {
+    List<Widget> stack = <Widget>[];
+    for (var layer in layers.layer) {
+      stack.add(
+        RepaintBoundary(
+          child: ScopedModel<PhotographTransducer>(
+            model: layer.model,
+            child: ScopedModelDescendant<PhotographTransducer>(
+              builder: (context, child, cart) => CustomPaint(
+                painter: PixelBufferPainter(layer.model.state)
+              ),
+            ),
+          ),
+        ),
+      );
+    }
+
+    return Container(
+      width: layers.canvas.model.state.size.width,
+      height: layers.canvas.model.state.size.height,
+      alignment: Alignment.topLeft,
+      color: Colors.white,
+      child: Stack(
+        children: stack
       ),
     );
   }

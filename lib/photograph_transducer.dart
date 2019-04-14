@@ -1,3 +1,6 @@
+// Copyright 2019 Green Appers, Inc. All rights reserved.
+// Use of this source code is governed by a MIT-style license that can be found in the LICENSE file.
+
 import 'dart:async';
 import 'dart:math';
 import 'dart:ui' as ui;
@@ -40,6 +43,7 @@ class Input {
   bool get processing => value == null && (transform is DownloadedStateTransform || transform is BackendTextureStateTransform);
 }
 
+/// The [PhotographTransducer] class transforms [PixelBuffer] `state` by the [List<Input>] `input`
 class PhotographTransducer extends Model {
   int version;
   PixelBuffer state;
