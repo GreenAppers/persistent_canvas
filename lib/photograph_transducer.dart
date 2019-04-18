@@ -74,6 +74,8 @@ class PhotographTransducer extends Model {
     orthogonalState = OrthogonalState();
   }
 
+  Future<img.Image> getDownloadedImage() async => state.getDownloadedImage();
+
   Future<ui.Image> getRenderedImage() async {
     if (version == state.paintedUserVersion) return state.uploaded;
     Completer<ui.Image> completer = Completer(); 

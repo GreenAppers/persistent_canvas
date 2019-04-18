@@ -12,5 +12,6 @@ dependencies:
   busy_model: ^1.0.0
   flutter:
     sdk: flutter
-  image: ^2.0.7
+  image:
+    path: ../image
   scoped_model: ^1.0.1

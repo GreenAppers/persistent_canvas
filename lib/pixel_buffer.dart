@@ -29,6 +29,7 @@ class PixelBuffer extends ImageStreamCompleter {
   int downloadedVersion = 0, downloadingVersion = 0;
   int paintedUserVersion = 0, paintingUserVersion = 0;
   int transformedUserVersion = 0, transformingUserVersion = 0;
+  List<ImgCallback> downloadDone = <ImgCallback>[];
 
   PixelBuffer(this.size) {
     paintUploaded();
@@ -42,6 +43,14 @@ class PixelBuffer extends ImageStreamCompleter {
   PixelBuffer.fromImg(this.downloaded) :
     size = Size(downloaded.width.toDouble(), downloaded.height.toDouble()) {
     setDownloadedState((img.Image x) {});
+  }
+
+  Future<img.Image> getDownloadedImage() async {
+    if (downloadedVersion >= uploadedVersion) return downloaded;
+    Completer<img.Image> completer = Completer(); 
+    downloadDone.add((img.Image result) { completer.complete(result); });
+    if (downloadingVersion == 0) downloadUploaded(downloadUploadedComplete);
+    return completer.future;
   }
 
   void transformDownloaded(ImgFilter tf, {int userVersion=1, VoidCallback done}) {
@@ -115,6 +124,10 @@ class PixelBuffer extends ImageStreamCompleter {
     downloaded = nextFrame;
     downloadedVersion = downloadingVersion;
     downloadingVersion = 0;
+    for (int i = 0; i < downloadDone.length; i++) {
+      downloadDone[i](downloaded);
+    }
+    downloadDone.clear();
     if (autoDownload && uploadedVersion > downloadedVersion) {
       downloadUploaded(downloadUploadedComplete);
     }
@@ -220,4 +233,8 @@ Float32List imgToFloat32List(img.Image image, int inputSize, double mean, double
     }
   }
   return convertedBytes;
+}
+
+int imgColorFromColor(Color color) {
+  return img.Color.fromRgba(color.red, color.green, color.blue, color.alpha);
 }
