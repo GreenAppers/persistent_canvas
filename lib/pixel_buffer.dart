@@ -45,47 +45,46 @@ class PixelBuffer extends ImageStreamCompleter {
     setDownloadedState((img.Image x) {});
   }
 
-  Future<img.Image> getDownloadedImage() async {
+  /// Broadcast a new 'uploaded' image via the [ImageStreamCompleter] interface
+  void broadcastUploaded() {
+    setImage(ImageInfo(image: uploaded));
+  }
+
+  Future<img.Image> getDownloadedState() async {
     if (downloadedVersion >= uploadedVersion) return downloaded;
     Completer<img.Image> completer = Completer(); 
     downloadDone.add((img.Image result) { completer.complete(result); });
-    if (downloadingVersion == 0) downloadUploaded(downloadUploadedComplete);
+    if (downloadingVersion == 0) _downloadUploaded(_downloadUploadedComplete);
     return completer.future;
   }
 
-  void transformDownloaded(ImgFilter tf, {int userVersion=1, VoidCallback done}) {
-    assert(transformingUserVersion == 0);
-    transformingUserVersion = userVersion;
-    if (downloadedVersion >= uploadedVersion) return transformDownloadedState(tf, done);
-    downloadUploaded((img.Image x) {
-      downloadUploadedComplete(x);
-      transformDownloadedState(tf, done);
-    });
-  }
-
-  void transformDownloadedState(ImgFilter tf, VoidCallback done) async {
-    // If we could move Objects between Isolates we would use compute() here
-    setDownloadedState((img.Image x){ downloaded = tf(x); });
-    transformDownloadedComplete(done);
-  }
-
-  void transformDownloadedComplete(VoidCallback done) {
-    transformedUserVersion = transformingUserVersion;
-    transformingUserVersion = 0;
-    done();
-  }
-
-  void cropUploaded(Rect src, {Rect dst, Size newSize, int userVersion=1}) {
+  /// Analogous to [State] setState().  Calls broadcastUploaded() directly
+  void setUploadedState(ImageCallback cb) {
+    assert(uploadingVersion == 0);
     assert(paintingUserVersion == 0);
-    paintingUserVersion = userVersion;
-    if (dst == null) dst = Rect.fromLTWH(0, 0, src.width, src.height);
-    size = newSize != null ? newSize : Size(dst.width, dst.height);
-    ui.PictureRecorder recorder = ui.PictureRecorder();
-    Canvas canvas = Canvas(recorder);
-    canvas.drawImageRect(uploaded, src, dst, Paint());
-    recorder.endRecording().toImage(size.width.floor(), size.height.floor()).then(paintUploadedComplete);
+    assert(transformingUserVersion == 0);
+    assert(uploadedVersion >= downloadedVersion);
+    cb(uploaded);
+    uploadedVersion++;
+    broadcastUploaded();
+    if (autoDownload && downloadingVersion == 0) {
+      _downloadUploaded(_downloadUploadedComplete);
+    }
   }
 
+  /// Analogous to [State] setState().  Culminates in broadcastUploaded() when 'autoUpload' == true
+  void setDownloadedState(ImgCallback cb) {
+    assert(downloadingVersion == 0);
+    assert(paintingUserVersion == 0);
+    assert(downloadedVersion >= uploadedVersion);
+    cb(downloaded);
+    downloadedVersion++;
+    if (autoUpload && uploadingVersion == 0) {
+      _uploadDownloaded(_uploadDownloadedComplete);
+    }
+  }
+
+  /// Primary method for 'uploaded' state transformations
   void paintUploaded({CustomPainter painter, ui.Image startingImage, int userVersion=1}) {
     assert(paintingUserVersion == 0);
     paintingUserVersion = userVersion;
@@ -94,33 +93,45 @@ class PixelBuffer extends ImageStreamCompleter {
     canvas.drawColor(Colors.white, BlendMode.src);
     if (startingImage != null) canvas.drawImage(startingImage, Offset(0, 0), Paint());
     if (painter != null) painter.paint(canvas, size);
-    recorder.endRecording().toImage(size.width.floor(), size.height.floor()).then(paintUploadedComplete);
+    recorder.endRecording().toImage(size.width.floor(), size.height.floor()).then(_paintUploadedComplete);
   }
 
-  void paintUploadedComplete(ui.Image nextFrame) {
-    paintedUserVersion = paintingUserVersion;
-    paintingUserVersion = 0;
-    setUploadedState((ui.Image x) { uploaded = nextFrame; });
+  /// Note: "crop" with arbitrary 'src' and 'dst' [Rect] generalizes scaling
+  void cropUploaded(Rect src, {Rect dst, Size newSize, int userVersion=1}) {
+    assert(paintingUserVersion == 0);
+    paintingUserVersion = userVersion;
+    if (dst == null) dst = Rect.fromLTWH(0, 0, src.width, src.height);
+    size = newSize != null ? newSize : Size(dst.width, dst.height);
+    ui.PictureRecorder recorder = ui.PictureRecorder();
+    Canvas canvas = Canvas(recorder);
+    canvas.drawImageRect(uploaded, src, dst, Paint());
+    recorder.endRecording().toImage(size.width.floor(), size.height.floor()).then(_paintUploadedComplete);
   }
 
-  void setUploadedState(ImageCallback cb) {
-    cb(uploaded);
-    uploadedVersion++;
-    broadcastUploaded();
-    if (autoDownload && downloadingVersion == 0) {
-      downloadUploaded(downloadUploadedComplete);
-    }
+  /// Primary method for 'downloaded' state transformations
+  void transformDownloaded(ImgFilter tf, {int userVersion=1, VoidCallback done}) {
+    assert(transformingUserVersion == 0);
+    transformingUserVersion = userVersion;
+    if (downloadedVersion >= uploadedVersion) return _transformDownloaded(tf, done);
+    _downloadUploaded((img.Image x) {
+      _downloadUploadedComplete(x);
+      _transformDownloaded(tf, done);
+    });
   }
 
-  void setDownloadedState(ImgCallback cb) {
-    cb(downloaded);
-    downloadedVersion++;
-    if (autoUpload && uploadingVersion == 0) {
-      uploadDownloaded(uploadDownloadedComplete);
-    }
+  void _downloadUploaded(ImgCallback cb) {
+    assert(downloadingVersion == 0);
+    downloadingVersion = uploadedVersion;
+    imgFromImage(uploaded).then(cb);
   }
 
-  void downloadUploadedComplete(img.Image nextFrame) {
+  void _uploadDownloaded(ImageCallback cb) {
+    assert(uploadingVersion == 0);
+    uploadingVersion = downloadedVersion;
+    imageFromImg(downloaded).then(cb);
+  }
+
+  void _downloadUploadedComplete(img.Image nextFrame) {
     downloaded = nextFrame;
     downloadedVersion = downloadingVersion;
     downloadingVersion = 0;
@@ -129,34 +140,36 @@ class PixelBuffer extends ImageStreamCompleter {
     }
     downloadDone.clear();
     if (autoDownload && uploadedVersion > downloadedVersion) {
-      downloadUploaded(downloadUploadedComplete);
+      _downloadUploaded(_downloadUploadedComplete);
     }
   }
 
-  void uploadDownloadedComplete(ui.Image nextFrame) {
+  void _uploadDownloadedComplete(ui.Image nextFrame) {
     uploaded = nextFrame;
     uploadedVersion = uploadingVersion;
     uploadingVersion = 0;
     broadcastUploaded();
     if (downloadedVersion != uploadedVersion) {
-      uploadDownloaded(uploadDownloadedComplete);
+      _uploadDownloaded(_uploadDownloadedComplete);
     }
   }
 
-  void broadcastUploaded() {
-    setImage(ImageInfo(image: uploaded));
+  void _paintUploadedComplete(ui.Image nextFrame) {
+    paintedUserVersion = paintingUserVersion;
+    paintingUserVersion = 0;
+    setUploadedState((ui.Image x) { uploaded = nextFrame; });
   }
 
-  void downloadUploaded(ImgCallback cb) {
-    assert(downloadingVersion == 0);
-    downloadingVersion = uploadedVersion;
-    imgFromImage(uploaded).then(cb);
+  void _transformDownloaded(ImgFilter tf, VoidCallback done) async {
+    // If we could move Objects between Isolates we would use compute() here
+    setDownloadedState((img.Image x){ downloaded = tf(x); });
+    _transformDownloadedComplete(done);
   }
 
-  void uploadDownloaded(ImageCallback cb) {
-    assert(uploadingVersion == 0);
-    uploadingVersion = downloadedVersion;
-    imageFromImg(downloaded).then(cb);
+  void _transformDownloadedComplete(VoidCallback done) {
+    transformedUserVersion = transformingUserVersion;
+    transformingUserVersion = 0;
+    done();
   }
 }
 
@@ -204,6 +217,14 @@ Future<img.Image> imgFromImage(ui.Image input) async {
   return img.Image.fromBytes(input.width, input.height, rgbaBytes.buffer.asUint8List());
 }
 
+Color colorFromImgColor(int color) {
+  return Color.fromARGB(img.getAlpha(color), img.getRed(color), img.getGreen(color), img.getBlue(color));
+}
+
+int imgColorFromColor(Color color) {
+  return img.Color.fromRgba(color.red, color.green, color.blue, color.alpha);
+}
+
 img.Image imgFromFloat32List(Float32List image, int inputSize, double mean, double std) {
   img.Image ret = img.Image(inputSize, inputSize);
   var buffer = Float32List.view(image.buffer);
@@ -233,8 +254,4 @@ Float32List imgToFloat32List(img.Image image, int inputSize, double mean, double
     }
   }
   return convertedBytes;
-}
-
-int imgColorFromColor(Color color) {
-  return img.Color.fromRgba(color.red, color.green, color.blue, color.alpha);
 }

@@ -74,9 +74,9 @@ class PhotographTransducer extends Model {
     orthogonalState = OrthogonalState();
   }
 
-  Future<img.Image> getDownloadedImage() async => state.getDownloadedImage();
+  Future<img.Image> getDownloadedState() async => state.getDownloadedState();
 
-  Future<ui.Image> getRenderedImage() async {
+  Future<ui.Image> getUploadedState() async {
     if (version == state.paintedUserVersion) return state.uploaded;
     Completer<ui.Image> completer = Completer(); 
     renderDone.add((ui.Image result) { completer.complete(result); });
@@ -177,7 +177,7 @@ class PhotographTransducer extends Model {
           userVersion: state.paintedUserVersion + 1
         );
         // Reset the "busy state" to trigger e.g. PhotoView rebuilds after resizing
-        if (busy != null) getRenderedImage().then((ui.Image x) { busy.reset(); });
+        if (busy != null) getUploadedState().then((ui.Image x) { busy.reset(); });
       } else {
         updateUploadedStateMethod();
       }
