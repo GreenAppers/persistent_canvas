@@ -15,6 +15,7 @@ import 'package:persistent_canvas/pixel_buffer.dart';
 
 class OrthogonalState {
   Paint paint = Paint();
+  Color backgroundColor = Colors.white;
 
   OrthogonalState() {
     paint.color = Colors.black;
@@ -43,12 +44,12 @@ class Input {
   bool get processing => value == null && (transform is DownloadedStateTransform || transform is BackendTextureStateTransform);
 }
 
-/// The [PhotographTransducer] class transforms [PixelBuffer] `state` by the [List<Input>] `input`
+/// The [PhotographTransducer] class transforms [PixelBuffer] 'state' by the [List<Input>] 'input'
 class PhotographTransducer extends Model {
   int version;
   PixelBuffer state;
-  VoidCallback updateUploadedStateMethod;
   OrthogonalState orthogonalState;
+  VoidCallback updateUploadedStateMethod;
   Size initialSize;
   List<Input> input;
   final BusyModel busy;

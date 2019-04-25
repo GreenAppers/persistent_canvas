@@ -45,11 +45,6 @@ class PixelBuffer extends ImageStreamCompleter {
     setDownloadedState((img.Image x) {});
   }
 
-  /// Broadcast a new 'uploaded' image via the [ImageStreamCompleter] interface
-  void broadcastUploaded() {
-    setImage(ImageInfo(image: uploaded));
-  }
-
   Future<img.Image> getDownloadedState() async {
     if (downloadedVersion >= uploadedVersion) return downloaded;
     Completer<img.Image> completer = Completer(); 
@@ -58,7 +53,7 @@ class PixelBuffer extends ImageStreamCompleter {
     return completer.future;
   }
 
-  /// Analogous to [State] setState().  Calls broadcastUploaded() directly
+  /// Analogous to [State] setState().  Calls _broadcastUploaded() directly
   void setUploadedState(ImageCallback cb) {
     assert(uploadingVersion == 0);
     assert(paintingUserVersion == 0);
@@ -66,13 +61,13 @@ class PixelBuffer extends ImageStreamCompleter {
     assert(uploadedVersion >= downloadedVersion);
     cb(uploaded);
     uploadedVersion++;
-    broadcastUploaded();
+    _broadcastUploaded();
     if (autoDownload && downloadingVersion == 0) {
       _downloadUploaded(_downloadUploadedComplete);
     }
   }
 
-  /// Analogous to [State] setState().  Culminates in broadcastUploaded() when 'autoUpload' == true
+  /// Analogous to [State] setState().  Culminates in _broadcastUploaded() when 'autoUpload' == true
   void setDownloadedState(ImgCallback cb) {
     assert(downloadingVersion == 0);
     assert(paintingUserVersion == 0);
@@ -148,7 +143,7 @@ class PixelBuffer extends ImageStreamCompleter {
     uploaded = nextFrame;
     uploadedVersion = uploadingVersion;
     uploadingVersion = 0;
-    broadcastUploaded();
+    _broadcastUploaded();
     if (downloadedVersion != uploadedVersion) {
       _uploadDownloaded(_uploadDownloadedComplete);
     }
@@ -171,8 +166,14 @@ class PixelBuffer extends ImageStreamCompleter {
     transformingUserVersion = 0;
     done();
   }
+
+  /// Broadcast a new 'uploaded' image via the [ImageStreamCompleter] interface
+  void _broadcastUploaded() {
+    setImage(ImageInfo(image: uploaded));
+  }
 }
 
+/// [ImageProvider] for [PixelBuffer]
 class PixelBufferImageProvider extends ImageProvider<PixelBufferImageProvider> {
   PixelBuffer pixelBuffer;
   PixelBufferImageProvider(this.pixelBuffer);
@@ -184,11 +185,12 @@ class PixelBufferImageProvider extends ImageProvider<PixelBufferImageProvider> {
 
   @override
   ImageStreamCompleter load(PixelBufferImageProvider key) {
-    if (key.pixelBuffer.uploaded != null) key.pixelBuffer.broadcastUploaded();
+    if (key.pixelBuffer.uploaded != null) key.pixelBuffer._broadcastUploaded();
     return key.pixelBuffer;
   }
 }
 
+/// [CustomPainter] for [PixelBuffer]
 class PixelBufferPainter extends CustomPainter {
   ui.Image uploadedPixelBuffer;
 

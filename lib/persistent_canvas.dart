@@ -22,26 +22,30 @@ class PersistentCanvas implements Canvas {
   @override
   void clipPath(Path path, { bool doAntiAlias = true }) {
     path = scalePath(path, model.state.size, down: true);
-    model.addUploadedTransform((Canvas canvas, Size size, Object x) => canvas.clipPath(scalePath(x, size), doAntiAlias: doAntiAlias), path);
+    model.addUploadedTransform((Canvas canvas, Size size, Object x) =>
+      canvas.clipPath(scalePath(x, size), doAntiAlias: doAntiAlias), path);
   }
 
   @override
   void clipRRect(RRect rrect, { bool doAntiAlias = true }) {
     rrect = scaleRRect(rrect, model.state.size, down: true);
-    model.addUploadedTransform((Canvas canvas, Size size, Object x) => canvas.clipRRect(scaleRRect(x, size), doAntiAlias: doAntiAlias), rrect);
+    model.addUploadedTransform((Canvas canvas, Size size, Object x) =>
+      canvas.clipRRect(scaleRRect(x, size), doAntiAlias: doAntiAlias), rrect);
   }
 
   @override
   void clipRect(Rect rect, { ui.ClipOp clipOp = ui.ClipOp.intersect, bool doAntiAlias = true }) {
     rect = scaleRect(rect, model.state.size, down: true);
-    model.addUploadedTransform((Canvas canvas, Size size, Object x) => canvas.clipRect(scaleRect(x, size), clipOp: clipOp, doAntiAlias: doAntiAlias), rect);
+    model.addUploadedTransform((Canvas canvas, Size size, Object x) =>
+      canvas.clipRect(scaleRect(x, size), clipOp: clipOp, doAntiAlias: doAntiAlias), rect);
   }
 
   @override
   void drawArc(Rect rect, double startAngle, double sweepAngle, bool useCenter, Paint paint) {
     rect = scaleRect(rect, model.state.size, down: true);
-    if (paint == null) paint = model.orthogonalState.paint;
-    model.addUploadedTransform((Canvas canvas, Size size, Object x) => canvas.drawArc(scaleRect(x, size), startAngle, sweepAngle, useCenter, paint), rect);
+    paint = _getScaledPaint(paint);
+    model.addUploadedTransform((Canvas canvas, Size size, Object x) =>
+      canvas.drawArc(scaleRect(x, size), startAngle, sweepAngle, useCenter, scalePaint(paint, size)), rect);
   }
 
   @override
@@ -52,28 +56,32 @@ class PersistentCanvas implements Canvas {
   void drawCircle(Offset c, double radius, Paint paint) {
     c = scaleOffset(c, model.state.size, down: true);
     radius = scaleDouble(radius, model.state.size, down: true);
-    if (paint == null) paint = model.orthogonalState.paint;
-    model.addUploadedTransform((Canvas canvas, Size size, Object x) => canvas.drawCircle(scaleOffset(c, size), scaleDouble(radius, size), x), paint);
+    paint = _getScaledPaint(paint);
+    model.addUploadedTransform((Canvas canvas, Size size, Object x) =>
+      canvas.drawCircle(scaleOffset(x, size), scaleDouble(radius, size), scalePaint(paint, size)), c);
   }
 
   @override
   void drawColor(Color color, BlendMode blendMode) {
-    model.addUploadedTransform((Canvas canvas, Size size, Object x) => canvas.drawColor(x, blendMode), color);
+    model.addUploadedTransform((Canvas canvas, Size size, Object x) =>
+      canvas.drawColor(x, blendMode), color);
   }
 
   @override
   void drawDRRect(RRect outer, RRect inner, Paint paint) {
     outer = scaleRRect(outer, model.state.size, down: true);
     inner = scaleRRect(inner, model.state.size, down: true);
-    if (paint == null) paint = model.orthogonalState.paint;
-    model.addUploadedTransform((Canvas canvas, Size size, Object x) => canvas.drawDRRect(scaleRRect(x, size), scaleRRect(inner, size), paint), outer);
+    paint = _getScaledPaint(paint);
+    model.addUploadedTransform((Canvas canvas, Size size, Object x) =>
+      canvas.drawDRRect(scaleRRect(x, size), scaleRRect(inner, size), scalePaint(paint, size)), outer);
   }
 
   @override
   void drawImage(ui.Image image, Offset p, Paint paint) {
     p = scaleOffset(p, model.state.size, down: true);
-    if (paint == null) paint = model.orthogonalState.paint;
-    model.addUploadedTransform((Canvas canvas, Size size, Object x) => canvas.drawImage(x, scaleOffset(p, size), paint), image);
+    paint = _getScaledPaint(paint);
+    model.addUploadedTransform((Canvas canvas, Size size, Object x) =>
+      canvas.drawImage(x, scaleOffset(p, size), scalePaint(paint, size)), image);
   }
 
   @override
@@ -86,62 +94,70 @@ class PersistentCanvas implements Canvas {
     // Assume the source image is derived if it has the same dimensions as the canvas
     bool scaleSrc = image.width == model.state.size.width && image.height == model.state.size.height;
     if (scaleSrc) src = scaleRect(src, model.state.size, down: true);
-    if (paint == null) paint = model.orthogonalState.paint;
-    model.addUploadedTransform(
-      (Canvas canvas, Size size, Object x) => canvas.drawImageRect(x, scaleSrc ? scaleRect(src, size) : src, scaleRect(dst, size), paint), image);
+    paint = _getScaledPaint(paint);
+    model.addUploadedTransform((Canvas canvas, Size size, Object x) =>
+      canvas.drawImageRect(x, scaleSrc ? scaleRect(src, size) : src, scaleRect(dst, size), scalePaint(paint, size)), image);
   }
 
   @override
   void drawLine(Offset p1, Offset p2, Paint paint) {
     p1 = scaleOffset(p1, model.state.size, down: true);
     p2 = scaleOffset(p2, model.state.size, down: true);
-    if (paint == null) paint = model.orthogonalState.paint;
-    model.addUploadedTransform((Canvas canvas, Size size, Object x) => canvas.drawLine(scaleOffset(p1, size), scaleOffset(x, size), paint), p2);
+    paint = _getScaledPaint(paint);
+    model.addUploadedTransform((Canvas canvas, Size size, Object x) =>
+      canvas.drawLine(scaleOffset(p1, size), scaleOffset(x, size), scalePaint(paint, size)), p2);
   }
 
   @override
   void drawOval(Rect rect, Paint paint) {
     rect = scaleRect(rect, model.state.size, down: true);
-    if (paint == null) paint = model.orthogonalState.paint;
-    model.addUploadedTransform((Canvas canvas, Size size, Object x) => canvas.drawOval(scaleRect(x, size), paint), rect);
+    paint = _getScaledPaint(paint);
+    model.addUploadedTransform((Canvas canvas, Size size, Object x) =>
+      canvas.drawOval(scaleRect(x, size), scalePaint(paint, size)), rect);
   }
 
   @override
   void drawPaint(Paint paint) {
-    if (paint == null) paint = model.orthogonalState.paint;
-    model.addUploadedTransform((Canvas canvas, Size size, Object x) => canvas.drawPaint(x), paint);
+    paint = _getScaledPaint(paint);
+    model.addUploadedTransform((Canvas canvas, Size size, Object x) =>
+      canvas.drawPaint(scalePaint(x, size)), paint);
   }
 
   @override
   void drawParagraph(ui.Paragraph paragraph, Offset offset) {
     offset = scaleOffset(offset, model.state.size, down: true);
-    model.addUploadedTransform((Canvas canvas, Size size, Object x) => canvas.drawParagraph(x, scaleOffset(offset, size)), paragraph);
+    model.addUploadedTransform((Canvas canvas, Size size, Object x) =>
+      canvas.drawParagraph(x, scaleOffset(offset, size)), paragraph);
   }
 
   @override
   void drawPath(Path path, Paint paint) {
     path = scalePath(path, model.state.size, down: true);
-    if (paint == null) paint = model.orthogonalState.paint;
-    model.addUploadedTransform((Canvas canvas, Size size, Object x) => canvas.drawPath(scalePath(x, size), paint), path);
+    paint = _getScaledPaint(paint);
+    model.addUploadedTransform((Canvas canvas, Size size, Object x) =>
+      canvas.drawPath(scalePath(x, size), scalePaint(paint, size)), path);
   }
 
   @override
   void drawPicture(ui.Picture picture) {
-    model.addUploadedTransform((Canvas canvas, Size size, Object x) => canvas.drawPicture(x), picture);
+    model.addUploadedTransform((Canvas canvas, Size size, Object x) =>
+      canvas.drawPicture(x), picture);
   }
 
   @override
   void drawPoints(ui.PointMode pointMode, List<Offset> points, Paint paint) {
     points = scaleOffsetList(points, model.state.size, down: true);
-    if (paint == null) paint = model.orthogonalState.paint;
-    model.addUploadedTransform((Canvas canvas, Size size, Object x) => canvas.drawPoints(pointMode, scaleOffsetList(x, size), paint), points);
+    paint = _getScaledPaint(paint);
+    model.addUploadedTransform((Canvas canvas, Size size, Object x) =>
+      canvas.drawPoints(pointMode, scaleOffsetList(x, size), scalePaint(paint, size)), points);
   }
 
   @override
   void drawRRect(RRect rrect, Paint paint) {
     rrect = scaleRRect(rrect, model.state.size, down: true);
-    if (paint == null) paint = model.orthogonalState.paint;
-    model.addUploadedTransform((Canvas canvas, Size size, Object x) => canvas.drawRRect(scaleRRect(x, size), paint), rrect);
+    paint = _getScaledPaint(paint);
+    model.addUploadedTransform((Canvas canvas, Size size, Object x) =>
+      canvas.drawRRect(scaleRRect(x, size), scalePaint(paint, size)), rrect);
   }
 
   @override
@@ -155,14 +171,16 @@ class PersistentCanvas implements Canvas {
   @override
   void drawRect(Rect rect, Paint paint) {
     rect = scaleRect(rect, model.state.size, down: true);
-    if (paint == null) paint = model.orthogonalState.paint;
-    model.addUploadedTransform((Canvas canvas, Size size, Object x) => canvas.drawRect(scaleRect(x, size), paint), rect);
+    paint = _getScaledPaint(paint);
+    model.addUploadedTransform((Canvas canvas, Size size, Object x) =>
+      canvas.drawRect(scaleRect(x, size), scalePaint(paint, size)), rect);
   }
 
   @override
   void drawShadow(Path path, Color color, double elevation, bool transparentOccluder) {
     path = scalePath(path, model.state.size, down: true);
-    model.addUploadedTransform((Canvas canvas, Size size, Object x) => canvas.drawShadow(scalePath(x, size), color, elevation, transparentOccluder), path);
+    model.addUploadedTransform((Canvas canvas, Size size, Object x) =>
+      canvas.drawShadow(scalePath(x, size), color, elevation, transparentOccluder), path);
   }
 
   @override
@@ -175,48 +193,61 @@ class PersistentCanvas implements Canvas {
   @override
   void restore() {
     saveCount--;
-    model.addUploadedTransform((Canvas canvas, Size size, Object x) => canvas.restore(), true);
+    model.addUploadedTransform((Canvas canvas, Size size, Object x) =>
+      canvas.restore(), true);
   }
 
   @override
   void rotate(double radians) {
-    model.addUploadedTransform((Canvas canvas, Size size, Object x) => canvas.rotate(x), radians);
+    model.addUploadedTransform((Canvas canvas, Size size, Object x) =>
+      canvas.rotate(x), radians);
   }
 
   @override
   void save() {
     saveCount++;
-    model.addUploadedTransform((Canvas canvas, Size size, Object x) => canvas.save(), true);
+    model.addUploadedTransform((Canvas canvas, Size size, Object x) =>
+      canvas.save(), true);
   }
 
   @override
   void saveLayer(Rect bounds, Paint paint) {
     saveCount++;
     bounds = scaleRect(bounds, model.state.size, down: true);
-    if (paint == null) paint = model.orthogonalState.paint;
-    model.addUploadedTransform((Canvas canvas, Size size, Object x) => canvas.saveLayer(scaleRect(x, size), paint), bounds);
+    paint = _getScaledPaint(paint);
+    model.addUploadedTransform((Canvas canvas, Size size, Object x) =>
+      canvas.saveLayer(scaleRect(x, size), scalePaint(paint, size)), bounds);
   }
 
   @override
   void scale(double sx, [ double sy ]) {
-    model.addUploadedTransform((Canvas canvas, Size size, Object x) => canvas.scale(x, sy), sx);
+    model.addUploadedTransform((Canvas canvas, Size size, Object x) =>
+      canvas.scale(x, sy), sx);
   }
 
   @override
   void skew(double sx, double sy) {
-    model.addUploadedTransform((Canvas canvas, Size size, Object x) => canvas.skew(x, sy), sx);
+    model.addUploadedTransform((Canvas canvas, Size size, Object x) =>
+      canvas.skew(x, sy), sx);
   }
 
   @override
   void transform(Float64List matrix4) {
-    model.addUploadedTransform((Canvas canvas, Size size, Object x) => canvas.transform(x), matrix4);
+    model.addUploadedTransform((Canvas canvas, Size size, Object x) =>
+      canvas.transform(x), matrix4);
   }
 
   @override
   void translate(double dx, double dy) {
     dx = dx / model.state.size.width;
     dy = dy / model.state.size.height;
-    model.addUploadedTransform((Canvas canvas, Size size, Object x) => canvas.skew((x as double) * size.width, dy * size.height), dx);
+    model.addUploadedTransform((Canvas canvas, Size size, Object x) =>
+      canvas.skew((x as double) * size.width, dy * size.height), dx);
+  }
+
+  Paint _getScaledPaint(Paint x) {
+    if (x == null) x = model.orthogonalState.paint;
+    return scalePaint(x, model.state.size, down: true);
   }
 }
 
@@ -323,4 +354,11 @@ RRect scaleRRect(RRect x, Size size, {bool down=false}) {
 Path scalePath(Path x, Size size, {bool down=false}) {
   Matrix4 scalingMatrix = Matrix4.diagonal3Values(down ? 1.0 / size.width : size.width, down ? 1.0 / size.height : size.height, 1.0);
   return x.transform(scalingMatrix.storage);
+}
+
+Paint scalePaint(Paint x, Size size, {bool down=false}) {
+  if (x.style != PaintingStyle.stroke) return x;
+  return clonePaint(x)
+    ..strokeWidth = scaleDouble(x.strokeWidth, size, down: down)
+    ..strokeMiterLimit = scaleDouble(x.strokeMiterLimit, size, down: down);
 }
