@@ -92,15 +92,19 @@ class PixelBuffer extends ImageStreamCompleter {
   }
 
   /// Note: "crop" with arbitrary 'src' and 'dst' [Rect] generalizes scaling
-  void cropUploaded(Rect src, {Rect dst, Size newSize, int userVersion=1}) {
+  void cropUploaded(Rect src, {Rect dst, Size newSize, int userVersion=1, Path clipPath, ImageCallback done}) {
     assert(paintingUserVersion == 0);
     paintingUserVersion = userVersion;
-    if (dst == null) dst = Rect.fromLTWH(0, 0, src.width, src.height);
-    size = newSize != null ? newSize : Size(dst.width, dst.height);
+
+    dst = dst ?? Rect.fromLTWH(0, 0, src.width, src.height);
+    newSize = newSize ?? Size(dst.width, dst.height);
+    if (done == null) size = newSize;
+
     ui.PictureRecorder recorder = ui.PictureRecorder();
     Canvas canvas = Canvas(recorder);
+    if (clipPath != null) canvas.clipPath(clipPath.shift(Offset(-src.left, -src.top)));
     canvas.drawImageRect(uploaded, src, dst, Paint());
-    recorder.endRecording().toImage(size.width.floor(), size.height.floor()).then(_paintUploadedComplete);
+    recorder.endRecording().toImage(newSize.width.floor(), newSize.height.floor()).then(done ?? _paintUploadedComplete);
   }
 
   /// Primary method for 'downloaded' state transformations
