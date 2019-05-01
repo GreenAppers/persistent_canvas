@@ -50,6 +50,11 @@ class PersistentCanvas implements Canvas {
 
   @override
   void drawAtlas(ui.Image atlas, List<RSTransform> transforms, List<Rect> rects, List<Color> colors, BlendMode blendMode, Rect cullRect, Paint paint) {
+    transforms = scaleRSTransformList(transforms, model.state.size, down: true);
+    cullRect = scaleRect(cullRect, model.state.size, down: true);
+    paint = _getScaledPaint(paint);
+    model.addUploadedTransform((Canvas canvas, Size size, Object x) =>
+      canvas.drawAtlas(x, scaleRSTransformList(transforms, size), rects, colors, blendMode, scaleRect(cullRect, size), scalePaint(paint, size)), atlas);
   }
 
   @override
@@ -86,6 +91,10 @@ class PersistentCanvas implements Canvas {
 
   @override
   void drawImageNine(ui.Image image, Rect center, Rect dst, Paint paint) {
+    dst = scaleRect(dst, model.state.size, down: true);
+    paint = _getScaledPaint(paint);
+    model.addUploadedTransform((Canvas canvas, Size size, Object x) =>
+      canvas.drawImageNine(x, center, scaleRect(dst, size), scalePaint(paint, size)), image);
   }
 
   @override
@@ -161,11 +170,20 @@ class PersistentCanvas implements Canvas {
   }
 
   @override
-  void drawRawAtlas(ui.Image atlas, Float32List rstTransforms, Float32List rects, Int32List colors, BlendMode blendMode, Rect cullRect, Paint paint) {
+  void drawRawAtlas(ui.Image atlas, Float32List transforms, Float32List rects, Int32List colors, BlendMode blendMode, Rect cullRect, Paint paint) {
+    transforms = scaleRawRSTransformList(transforms, model.state.size, down: true);
+    cullRect = scaleRect(cullRect, model.state.size, down: true);
+    paint = _getScaledPaint(paint);
+    model.addUploadedTransform((Canvas canvas, Size size, Object x) =>
+      canvas.drawRawAtlas(x, scaleRawRSTransformList(transforms, size), rects, colors, blendMode, scaleRect(cullRect, size), scalePaint(paint, size)), atlas);
   }
 
   @override
   void drawRawPoints(ui.PointMode pointMode, Float32List points, Paint paint) {
+    points = scaleRawOffsetList(points, model.state.size, down: true);
+    paint = _getScaledPaint(paint);
+    model.addUploadedTransform((Canvas canvas, Size size, Object x) =>
+      canvas.drawRawPoints(pointMode, scaleRawOffsetList(x, size), scalePaint(paint, size)), points);
   }
 
   @override
@@ -185,6 +203,15 @@ class PersistentCanvas implements Canvas {
 
   @override
   void drawVertices(ui.Vertices vertices, BlendMode blendMode, Paint paint) {
+    paint = _getScaledPaint(paint);
+    Size originalSize = model.state.size;
+    model.addUploadedTransform((Canvas canvas, Size size, Object x) {
+      canvas.save();
+      canvas.scale(size.width .toDouble() / originalSize.width .toDouble(),
+                   size.height.toDouble() / originalSize.height.toDouble());
+      canvas.drawVertices(vertices, blendMode, scalePaint(paint, size));
+      canvas.restore();
+    }, vertices);
   }
 
   @override
@@ -361,4 +388,27 @@ Paint scalePaint(Paint x, Size size, {bool down=false}) {
   return clonePaint(x)
     ..strokeWidth = scaleDouble(x.strokeWidth, size, down: down)
     ..strokeMiterLimit = scaleDouble(x.strokeMiterLimit, size, down: down);
+}
+
+RSTransform scaleRSTransform(RSTransform x, Size size, {bool down=false}) {
+  throw Exception("not yet implemented");
+  return x;
+}
+
+List<RSTransform> scaleRSTransformList(List<RSTransform> x, Size size, {bool down=false}) {
+  return x.map((tf) => scaleRSTransform(tf, size, down: down)).toList();
+}
+
+Float32List scaleRawOffsetList(Float32List x, Size size, {bool down=false}) {
+  Float32List ret = Float32List(x.length);
+  for (int i=0; i<x.length; x++) {
+    if (i % 2 == 0) ret[i] = down ? x[i] / size.width  : x[i] * size.width;
+    else            ret[i] = down ? x[i] / size.height : x[i] * size.height;
+  }
+  return ret;
+}
+
+Float32List scaleRawRSTransformList(Float32List x, Size size, {bool down=false}) {
+  throw Exception("not yet implemented");
+  return x;
 }

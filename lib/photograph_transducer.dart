@@ -71,7 +71,7 @@ class PhotographTransducer extends Model {
       state = PixelBuffer(Size(256, 256));
     }
     initialSize = state.size;
-    state.addListener(updatedUploadedState);
+    state.addListener(_updatedUploadedState);
     orthogonalState = OrthogonalState();
   }
 
@@ -84,6 +84,14 @@ class PhotographTransducer extends Model {
     return completer.future;
   }
 
+  void setInitialState() {
+    orthogonalState = OrthogonalState();
+    if (state.size != initialSize) {
+      state.size = initialSize;
+      if (busy != null) busy.reset();
+    }
+  }
+
   void changeColor(Color color) {
     orthogonalState.setPaintState((Paint paint) => paint.color = color);
   }
@@ -94,29 +102,6 @@ class PhotographTransducer extends Model {
     version++;
   }
 
-  void addRedraw(ui.Image image, {reseting=false}) {
-    final Paint paint = orthogonalState.paint;
-    addInput(Input((Canvas canvas, Size size, Object x) => canvas.drawImage(x, Offset(0, 0), paint), image));
-    if (!reseting)
-      updateState();
-  }
-
-  void addCrop(Rect rect) {
-    UploadedCropTransform tf = (ui.Image x, Rect r) { return x; };
-    addInput(Input(tf, rect));
-    updateState();
-  }
-
-  void addUploadedTransform(UploadedStateTransform transform, Object v) {
-    addInput(Input(transform, v));
-    updateState();
-  }
-
-  void addDownloadedTransform(DownloadedStateTransform filter) {
-    addInput(Input(filter, null));
-    updateState();
-  }
-
   void addList(List<Input> list, {int startIndex}) {
     for(var i = startIndex == null ? 0 : startIndex; i < list.length; i++) {
       var x = list[i];
@@ -124,21 +109,47 @@ class PhotographTransducer extends Model {
     }
   }
 
+  void addRedraw(ui.Image image, {reseting=false}) {
+    final Paint paint = orthogonalState.paint;
+    addInput(Input((Canvas canvas, Size size, Object x) => canvas.drawImage(x, Offset(0, 0), paint), image));
+    if (!reseting)
+      _updateState();
+  }
+
+  void addCrop(Rect rect) {
+    UploadedCropTransform tf = (ui.Image x, Rect r) { return x; };
+    addInput(Input(tf, rect));
+    _updateState();
+  }
+
+  void addUploadedTransform(UploadedStateTransform transform, Object v) {
+    addInput(Input(transform, v));
+    _updateState();
+  }
+
+  void addDownloadedTransform(DownloadedStateTransform filter) {
+    addInput(Input(filter, null));
+    _updateState();
+  }
+
+  /// Generalized "undo" that redraws from scratch to go backwards
   void walkVersion(int n) {
     version += n;
     version = version.clamp(0, input.length);
-    updateState();
+    _updateState();
   }
 
-  void setInitialState() {
-    orthogonalState = OrthogonalState();
-    if (state.size != initialSize) {
-      state.size = initialSize;
-      if (busy != null) busy.reset();
-    }
+  /// Can be used to implement tool previews
+  void undo() {
+    assert(state.lastUploaded != null);
+    state.uploaded = state.lastUploaded;
+    state.uploadedVersion = state.lastUploadedVersion;
+    state.paintedUserVersion = state.lastPaintedUserVersion;
+    input.removeLast();
+    version--;
   }
 
-  int transduceUploaded(Canvas canvas, Size size, {int startVersion=0, int endVersion}) {
+  int _transduceUploaded(Canvas canvas, Size size, {int startVersion=0, int endVersion}) {
     if (startVersion == 0) setInitialState();
     int i = startVersion;
     endVersion = endVersion == null ? version : min(endVersion, version);
@@ -154,7 +165,7 @@ class PhotographTransducer extends Model {
     return i;
   }
 
-  int findTransduceUploadedVersion({int startVersion=0, int endVersion}) {
+  int _findTransduceUploadedVersion({int startVersion=0, int endVersion}) {
     int i = startVersion;
     endVersion = endVersion == null ? version : min(endVersion, version);
     for (/**/; i < endVersion; i++) {
@@ -164,13 +175,13 @@ class PhotographTransducer extends Model {
     return i;
   }
 
-  void updateState() {
+  void _updateState() {
     if (version == state.paintedUserVersion) return;
     if (state.paintingUserVersion != 0 || state.transformingUserVersion != 0 || state.uploadingVersion != 0) return;
     if (version < state.paintedUserVersion) return updateUploadedStateRepaint();
     var x = input[state.paintedUserVersion];
     if (x.processing) {
-      updateDownloadedState(state.paintedUserVersion + 1, x.transform);
+      _updateDownloadedState(state.paintedUserVersion + 1, x.transform);
     } else {
       if (x.transform is UploadedCropTransform) {
         state.cropUploaded(
@@ -185,19 +196,19 @@ class PhotographTransducer extends Model {
     }
   }
 
-  void updateDownloadedState(int newVersion, DownloadedStateTransform tf) {
+  void _updateDownloadedState(int newVersion, DownloadedStateTransform tf) {
     if (busy != null) busy.setBusy('Processing');
     state.transformDownloaded(tf,
       userVersion: newVersion,
-      done: updatedDownloadedState
+      done: _updatedDownloadedState
     );
   }
 
-  void updatedDownloadedState() {
+  void _updatedDownloadedState() {
     if (busy != null) busy.reset();
   }
  
-  void updatedUploadedState(ImageInfo image, bool synchronousCall) {
+  void _updatedUploadedState(ImageInfo image, bool synchronousCall) {
     if (state.paintedUserVersion < input.length) {
       var x = input[state.paintedUserVersion];
       if (x.processing) x.value = state.uploaded;
@@ -211,15 +222,15 @@ class PhotographTransducer extends Model {
       }
       renderDone.clear();
     } else {
-      updateState();
+      _updateState();
     }
   }
 
   void updateUploadedStateRepaint() {
-    int newVersion = findTransduceUploadedVersion();
+    int newVersion = _findTransduceUploadedVersion();
     state.paintUploaded(
       userVersion: newVersion,
-      painter: PhotographTransducerPainter(this,
+      painter: _PhotographTransducerDeltaPainter(this,
         endVersion: newVersion,
       ),
     );
@@ -227,37 +238,39 @@ class PhotographTransducer extends Model {
 
   void updateUploadedStatePaintDelta() {
     int startVersion = state.paintedUserVersion;
-    int newVersion = findTransduceUploadedVersion(startVersion: startVersion);
+    int newVersion = _findTransduceUploadedVersion(startVersion: startVersion);
     assert(newVersion > startVersion);
     state.paintUploaded(
       userVersion: newVersion,
-      painter: PhotographTransducerPainter(this,
+      painter: _PhotographTransducerDeltaPainter(this,
+        startingImage: state.uploaded,
         startVersion: startVersion,
         endVersion: newVersion,
       ),
-      startingImage: state.uploaded,
     );
   }
 }
 
-class PhotographTransducerPainter extends CustomPainter {
+class _PhotographTransducerDeltaPainter extends CustomPainter {
   PhotographTransducer transducer;
   int startVersion, endVersion;
+  ui.Image startingImage;
 
-  PhotographTransducerPainter(
-    this.transducer, {this.startVersion=0, this.endVersion}
+  _PhotographTransducerDeltaPainter(
+    this.transducer, {this.startVersion=0, this.endVersion, this.startingImage}
   );
 
   @override
-  bool shouldRepaint(PhotographTransducerPainter oldDelegate) {
-    return true;
-  }
+  bool shouldRepaint(_PhotographTransducerDeltaPainter oldDelegate) => true;
 
   void paint(Canvas canvas, Size size) {
-    int version = transducer.transduceUploaded(canvas, size,
+    if (startingImage != null) canvas.drawImage(startingImage, Offset(0, 0), Paint());
+
+    int version = transducer._transduceUploaded(canvas, size,
       startVersion: startVersion,
       endVersion: endVersion,
     );
+
     if (endVersion != null) {
       assert(version == endVersion);
     }

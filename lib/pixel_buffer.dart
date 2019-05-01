@@ -22,29 +22,34 @@ typedef ImgFilter = img.Image Function(img.Image);
 ///
 class PixelBuffer extends ImageStreamCompleter {
   Size size;
-  ui.Image uploaded;
   img.Image downloaded;
+  ui.Image uploaded, lastUploaded;
   bool autoUpload = true, autoDownload = false;
   int uploadedVersion = 0, uploadingVersion = 0;
   int downloadedVersion = 0, downloadingVersion = 0;
   int paintedUserVersion = 0, paintingUserVersion = 0;
   int transformedUserVersion = 0, transformingUserVersion = 0;
+  int lastUploadedVersion, lastPaintedUserVersion;
   List<ImgCallback> downloadDone = <ImgCallback>[];
 
+  /// Blank [PixelBuffer] in 'uploaded' state
   PixelBuffer(this.size) {
     paintUploaded();
   }
 
+  /// Create [PixelBuffer] in 'uploaded' state
   PixelBuffer.fromImage(this.uploaded, [this.paintedUserVersion=1]) :
     size = Size(uploaded.width.toDouble(), uploaded.height.toDouble()) {
     setUploadedState((ui.Image x) {});
   }
 
+  /// Create [PixelBuffer] in 'downloaded' state
   PixelBuffer.fromImg(this.downloaded) :
     size = Size(downloaded.width.toDouble(), downloaded.height.toDouble()) {
     setDownloadedState((img.Image x) {});
   }
 
+  /// Get the latest [img.Image], "downloading" it if necessary
   Future<img.Image> getDownloadedState() async {
     if (downloadedVersion >= uploadedVersion) return downloaded;
     Completer<img.Image> completer = Completer(); 
@@ -80,13 +85,12 @@ class PixelBuffer extends ImageStreamCompleter {
   }
 
   /// Primary method for 'uploaded' state transformations
-  void paintUploaded({CustomPainter painter, ui.Image startingImage, int userVersion=1}) {
+  void paintUploaded({CustomPainter painter, int userVersion=1}) {
     assert(paintingUserVersion == 0);
     paintingUserVersion = userVersion;
     ui.PictureRecorder recorder = ui.PictureRecorder();
     Canvas canvas = Canvas(recorder);
     canvas.drawColor(Colors.white, BlendMode.src);
-    if (startingImage != null) canvas.drawImage(startingImage, Offset(0, 0), Paint());
     if (painter != null) painter.paint(canvas, size);
     recorder.endRecording().toImage(size.width.floor(), size.height.floor()).then(_paintUploadedComplete);
   }
@@ -144,6 +148,7 @@ class PixelBuffer extends ImageStreamCompleter {
   }
 
   void _uploadDownloadedComplete(ui.Image nextFrame) {
+    _saveLastUploaded();
     uploaded = nextFrame;
     uploadedVersion = uploadingVersion;
     uploadingVersion = 0;
@@ -154,9 +159,17 @@ class PixelBuffer extends ImageStreamCompleter {
   }
 
   void _paintUploadedComplete(ui.Image nextFrame) {
+    _saveLastUploaded();
     paintedUserVersion = paintingUserVersion;
     paintingUserVersion = 0;
     setUploadedState((ui.Image x) { uploaded = nextFrame; });
+  }
+
+  /// Remember last 'uploaded' state for e.g. [PhotographTransducer]'s [undo].
+  void _saveLastUploaded() {
+    lastUploaded = uploaded;
+    lastUploadedVersion = uploadedVersion;
+    lastPaintedUserVersion = paintedUserVersion;
   }
 
   void _transformDownloaded(ImgFilter tf, VoidCallback done) async {
