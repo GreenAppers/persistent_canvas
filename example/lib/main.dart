@@ -31,7 +31,7 @@ class MyHomePage extends StatefulWidget {
 class _MyHomePageState extends State<MyHomePage> {
   PersistentCanvas _canvas = PersistentCanvas(
     size: Size(250, 250),
-    coordinates: PersistentCanvasCoordinates.PreNormalized
+    coordinates: PersistentCanvasCoordinates.preNormalized
   );
   RandomColor _randomColor = RandomColor();
   Random _random = Random();
