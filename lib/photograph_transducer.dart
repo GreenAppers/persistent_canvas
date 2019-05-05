@@ -13,6 +13,34 @@ import 'package:scoped_model/scoped_model.dart';
 
 import 'package:persistent_canvas/pixel_buffer.dart';
 
+// Photograph Transducer is an image manipulation engine inspired by Finite
+// State Automata.  We imagine a "transducer" (with empty output alphabet)
+// whose state space is the set of all "photographs" (e.g. images) of some size.
+//
+// Formally, a finite transducer T is a 6-tuple (Q, Σ, Γ, I, F, δ) such that:
+//
+// Q is a finite set, the set of states;
+// Σ is a finite set, called the input alphabet;
+// Γ is a finite set, called the output alphabet;
+// I is a subset of Q, the set of initial states;
+// F is a subset of Q, the set of final states; and
+// δ ⊆ Q ⨉ (Σ ∪ {ϵ}) ⨉ (Γ ∪ {ϵ}) ⨉ Q (where ϵ is the empty string) is the transition relation.
+
+typedef UploadedStateTransform = void Function(Canvas, Size, Object);
+typedef UploadedCropTransform = ui.Image Function(ui.Image, Rect);
+typedef DownloadedStateTransform = img.Image Function(img.Image);
+typedef BackendTextureStateTransform = void Function(int);
+typedef PaintCallback = void Function(Paint);
+
+class Input {
+  Object transform;
+  Object value;
+
+  Input(this.transform, this.value);
+
+  bool get processing => value == null && (transform is DownloadedStateTransform || transform is BackendTextureStateTransform);
+}
+
 class OrthogonalState {
   Paint paint = Paint();
   Color backgroundColor = Colors.white;
@@ -29,22 +57,7 @@ class OrthogonalState {
   }
 }
 
-typedef PaintCallback = void Function(Paint);
-typedef UploadedStateTransform = void Function(Canvas, Size, Object);
-typedef UploadedCropTransform = ui.Image Function(ui.Image, Rect);
-typedef DownloadedStateTransform = img.Image Function(img.Image);
-typedef BackendTextureStateTransform = void Function(int);
-
-class Input {
-  Object transform;
-  Object value;
-
-  Input(this.transform, this.value);
-
-  bool get processing => value == null && (transform is DownloadedStateTransform || transform is BackendTextureStateTransform);
-}
-
-/// The [PhotographTransducer] class transforms [PixelBuffer] 'state' by the [List<Input>] 'input'
+/// [PhotographTransducer] transforms [PixelBuffer] 'state' by the [List<Input>] 'input'
 class PhotographTransducer extends Model {
   int version;
   PixelBuffer state;
@@ -55,12 +68,12 @@ class PhotographTransducer extends Model {
   final BusyModel busy;
   List<ImageCallback> renderDone = <ImageCallback>[];
 
-  PhotographTransducer({this.busy}) {
+  PhotographTransducer({ui.Image initialState, Size size, this.busy}) {
     updateUploadedStateMethod = updateUploadedStatePaintDelta;
-    reset();
+    reset(initialState, size);
   }
 
-  void reset([ui.Image image]) {
+  void reset([ui.Image image, Size size]) {
     version = 0;
     input = <Input>[];
     if (image != null) {
@@ -68,7 +81,7 @@ class PhotographTransducer extends Model {
       state = PixelBuffer.fromImage(image, version);
       notifyListeners();
     } else {
-      state = PixelBuffer(Size(256, 256));
+      state = PixelBuffer(size ?? Size(256, 256));
     }
     initialSize = state.size;
     state.addListener(_updatedUploadedState);

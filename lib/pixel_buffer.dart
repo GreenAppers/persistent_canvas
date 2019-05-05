@@ -212,6 +212,7 @@ class PixelBufferPainter extends CustomPainter {
   ui.Image uploadedPixelBuffer;
 
   PixelBufferPainter(PixelBuffer pb) : uploadedPixelBuffer = pb.uploaded;
+  PixelBufferPainter.fromImage(this.uploadedPixelBuffer);
 
   @override
   bool shouldRepaint(PixelBufferPainter oldDelegate) {
@@ -221,6 +222,26 @@ class PixelBufferPainter extends CustomPainter {
   void paint(Canvas canvas, Size size) {
     if (uploadedPixelBuffer == null) return;
     canvas.drawImage(uploadedPixelBuffer, Offset(0, 0), Paint());
+  }
+}
+
+/// [CustomPainter] that scales [PixelBuffer] to fit [Canvas]
+class ScaledPixelBufferPainter extends CustomPainter {
+  ui.Image uploadedPixelBuffer;
+
+  ScaledPixelBufferPainter(PixelBuffer pb) : uploadedPixelBuffer = pb.uploaded;
+  ScaledPixelBufferPainter.fromImage(this.uploadedPixelBuffer);
+
+  @override
+  bool shouldRepaint(ScaledPixelBufferPainter oldDelegate) {
+    return uploadedPixelBuffer != oldDelegate.uploadedPixelBuffer;
+  }
+
+  void paint(Canvas canvas, Size size) {
+    if (uploadedPixelBuffer == null) return;
+    Rect src = Rect.fromLTWH(0, 0, uploadedPixelBuffer.width.toDouble(), uploadedPixelBuffer.height.toDouble());
+    Rect dst = Rect.fromLTWH(0, 0, size.width.toDouble(), size.height.toDouble());
+    canvas.drawImageRect(uploadedPixelBuffer, src, dst, Paint());
   }
 }
 
