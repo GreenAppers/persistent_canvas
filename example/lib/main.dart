@@ -30,9 +30,13 @@ class MyHomePage extends StatefulWidget {
 
 class _MyHomePageState extends State<MyHomePage> {
   PersistentCanvas _canvas = PersistentCanvas(
+    /// [PersistentCanvas] will maintain a [ui.Image] of [Size] 'size'
     size: Size(250, 250),
+
+    /// Use "normalized" coordinatges spanning [0,1]
     coordinates: PersistentCanvasCoordinates.preNormalized
   );
+
   RandomColor _randomColor = RandomColor();
   Random _random = Random();
   int _counter = 0;
@@ -40,6 +44,8 @@ class _MyHomePageState extends State<MyHomePage> {
   void _incrementCounter() {
     setState(() {
       _counter++;
+
+      // Draw a random circle
       Paint paint = Paint()..color = _randomColor.randomColor();
       Offset center = Offset(_random.nextDouble(), _random.nextDouble());
       double radius = _random.nextDouble() / 20.0;

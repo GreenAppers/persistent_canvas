@@ -2,11 +2,12 @@
 
         PersistentCanvas _canvas = PersistentCanvas(
           size: Size(250, 250),
-          coordinates: PersistentCanvasCoordinates.preNormalized
+          coordinates: PersistentCanvasCoordinates.preNormalized,
         );
         RandomColor _randomColor = RandomColor();
         Random _random = Random();
         int _counter = 0;
+         
         void _incrementCounter() {
           setState(() {
             _counter++;
