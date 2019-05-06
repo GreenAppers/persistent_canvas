@@ -1,5 +1,5 @@
 name: persistent_canvas
-version: 1.0.2+2
+version: 1.0.3+3
 description: Provides PersistentCanvas and PixelBuffer via PhotographTransducer
 author: Green Appers, Inc. <greenappers@gmail.com>
 homepage: https://github.com/GreenAppers/persistent_canvas
