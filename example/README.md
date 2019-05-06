@@ -1,7 +1,5 @@
 # Persistent Canvas Example
 
-![](demo.gif)
-
         PersistentCanvas _canvas = PersistentCanvas(
           size: Size(250, 250),
           coordinates: PersistentCanvasCoordinates.preNormalized
@@ -18,4 +16,8 @@
             _canvas.drawCircle(center, radius, paint);
           });
         }
+
+## Demo
+
+![](demo.gif)
 
