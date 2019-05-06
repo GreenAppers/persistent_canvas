@@ -1,16 +1,21 @@
-# example
+# Persistent Canvas Example
 
-A new Flutter project.
+![](demo.gif)
 
-## Getting Started
+        PersistentCanvas _canvas = PersistentCanvas(
+          size: Size(250, 250),
+          coordinates: PersistentCanvasCoordinates.preNormalized
+        );
+        RandomColor _randomColor = RandomColor();
+        Random _random = Random();
+        int _counter = 0;
+        void _incrementCounter() {
+          setState(() {
+            _counter++;
+            Paint paint = Paint()..color = _randomColor.randomColor();
+            Offset center = Offset(_random.nextDouble(), _random.nextDouble());
+            double radius = _random.nextDouble() / 20.0;
+            _canvas.drawCircle(center, radius, paint);
+          });
+        }
 
-This project is a starting point for a Flutter application.
-
-A few resources to get you started if this is your first Flutter project:
-
-- [Lab: Write your first Flutter app](https://flutter.io/docs/get-started/codelab)
-- [Cookbook: Useful Flutter samples](https://flutter.io/docs/cookbook)
-
-For help getting started with Flutter, view our 
-[online documentation](https://flutter.io/docs), which offers tutorials, 
-samples, guidance on mobile development, and a full API reference.
