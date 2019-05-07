@@ -156,10 +156,12 @@ class PhotographTransducer extends Model {
   }
 
   /// Generalized "undo" that redraws from scratch to go backwards
-  void walkVersion(int n) {
+  bool walkVersion(int n) {
+    int oldVersion = version;
     version += n;
     version = version.clamp(0, input.length);
     _updateState();
+    return oldVersion != version;
   }
 
   /// Can be used to implement tool previews

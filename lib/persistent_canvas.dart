@@ -612,8 +612,8 @@ class PersistentCanvasWidget extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      width: model.state.size.width,
-      height: model.state.size.height,
+      width: canvas.size.width,
+      height: canvas.size.height,
       alignment: Alignment.topLeft,
       color: Colors.white,
       child: RepaintBoundary(
