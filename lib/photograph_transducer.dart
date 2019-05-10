@@ -110,8 +110,17 @@ class PhotographTransducer extends Model {
     }
   }
 
-  void changeColor(Color color) {
-    orthogonalState.setPaintState((Paint paint) => paint.color = color);
+  void changeColor([Color color]) {
+    orthogonalState.setPaintState((Paint paint) => paint
+      ..color = color ?? paint.color
+      ..shader = null
+    );
+  }
+
+  void changeShader([Shader shader]) {
+    orthogonalState.setPaintState((Paint paint) => paint
+      ..shader = shader ?? paint.shader
+    );
   }
 
   void addInput(Input x) {
