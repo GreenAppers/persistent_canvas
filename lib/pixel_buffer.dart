@@ -87,12 +87,12 @@ class PixelBuffer extends ImageStreamCompleter {
   }
 
   /// Primary method for 'uploaded' state transformations
-  void paintUploaded({CustomPainter painter, int userVersion = 1}) {
+  void paintUploaded({CustomPainter painter, int userVersion=1, Color backgroundColor}) {
     assert(paintingUserVersion == 0);
     paintingUserVersion = userVersion;
     ui.PictureRecorder recorder = ui.PictureRecorder();
     Canvas canvas = Canvas(recorder);
-    canvas.drawColor(Colors.white, BlendMode.src);
+    if (backgroundColor != null) canvas.drawColor(backgroundColor, BlendMode.src);
     if (painter != null) painter.paint(canvas, size);
     recorder
         .endRecording()

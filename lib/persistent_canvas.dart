@@ -15,7 +15,9 @@ import 'package:persistent_canvas/photograph_transducer.dart';
 
 enum PersistentCanvasCoordinates { regular, normalize, preNormalized }
 
-/// The [PersistentCanvas] class provides [Canvas] backed by [PhotographTransducer]
+/// [PersistentCanvas] provides a [Canvas] using [PhotographTransducer]
+/// to maintain a [ui.Image] 'image' of [Size] 'size', and a rescalable
+/// edit history.
 class PersistentCanvas implements Canvas {
   final PhotographTransducer model;
   final PersistentCanvasCoordinates coordinates;
@@ -30,6 +32,19 @@ class PersistentCanvas implements Canvas {
             initialState: startingImage, size: size, busy: busy);
 
   Size get size => model.state.size;
+
+  ui.Image get image => model.state.uploaded;
+
+  Future<ui.Image> saveImage({Size size, ui.Image originalResolutionInput}) {
+    if (size == null) return model.getUploadedState();
+    if (originalResolutionInput != null) { 
+      PhotographTransducer fullResTransducer =
+        PhotographTransducer(initialState: originalResolutionInput);
+      fullResTransducer.addList(model.input, startIndex: 1);
+      return fullResTransducer.getUploadedState();
+    }
+    return model.getUploadedState();
+  }
 
   @override
   void clipPath(Path path, {bool doAntiAlias = true}) {
@@ -581,33 +596,10 @@ class PersistentCanvas implements Canvas {
   }
 }
 
-class PersistentCanvasLayers {
-  final BusyModel busy;
-  List<PersistentCanvas> layer;
-
-  PersistentCanvas get canvas => layer[0];
-
-  PersistentCanvasLayers(
-      {ui.Image startingImage,
-      Size size,
-      PersistentCanvasCoordinates coordinates =
-          PersistentCanvasCoordinates.regular,
-      this.busy})
-      : layer = <PersistentCanvas>[
-          PersistentCanvas(
-              startingImage: startingImage,
-              coordinates: coordinates,
-              size: size,
-              busy: busy)
-        ];
-}
-
 class PersistentCanvasWidget extends StatelessWidget {
   final PersistentCanvas canvas;
 
   PersistentCanvasWidget(this.canvas);
-
-  PhotographTransducer get model => canvas.model;
 
   @override
   Widget build(BuildContext context) {
@@ -618,45 +610,15 @@ class PersistentCanvasWidget extends StatelessWidget {
       color: Colors.white,
       child: RepaintBoundary(
         child: ScopedModel<PhotographTransducer>(
-          model: model,
+          model: canvas.model,
           child: ScopedModelDescendant<PhotographTransducer>(
             builder: (context, child, cart) =>
-                CustomPaint(painter: PixelBufferPainter(model.state)),
+                CustomPaint(
+                  painter: PixelBufferPainter.fromImage(canvas.image)
+                ),
           ),
         ),
       ),
-    );
-  }
-}
-
-class PersistentCanvasLayersWidget extends StatelessWidget {
-  final PersistentCanvasLayers layers;
-
-  PersistentCanvasLayersWidget(this.layers);
-
-  @override
-  Widget build(BuildContext context) {
-    List<Widget> stack = <Widget>[];
-    for (var layer in layers.layer) {
-      stack.add(
-        RepaintBoundary(
-          child: ScopedModel<PhotographTransducer>(
-            model: layer.model,
-            child: ScopedModelDescendant<PhotographTransducer>(
-              builder: (context, child, cart) =>
-                  CustomPaint(painter: PixelBufferPainter(layer.model.state)),
-            ),
-          ),
-        ),
-      );
-    }
-
-    return Container(
-      width: layers.canvas.model.state.size.width,
-      height: layers.canvas.model.state.size.height,
-      alignment: Alignment.topLeft,
-      color: Colors.white,
-      child: Stack(children: stack),
     );
   }
 }
