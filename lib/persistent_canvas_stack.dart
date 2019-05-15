@@ -12,7 +12,7 @@ import 'package:persistent_canvas/persistent_canvas.dart';
 import 'package:persistent_canvas/pixel_buffer.dart';
 import 'package:persistent_canvas/photograph_transducer.dart';
 
-class PersistentCanvasStack {
+class PersistentCanvasStack extends Model {
   List<PersistentCanvas> layer;
   int selectedLayerIndex = 0;
   final BusyModel busy;
@@ -37,15 +37,50 @@ class PersistentCanvasStack {
     return canvas.saveImage(size: size, originalResolutionInput: originalResolutionInput);
   }
 
+  void selectLayer([int index]) {
+    index = index ?? layer.length;
+    assert(index >= 0 && index <= layer.length);
+    selectedLayerIndex = index;
+    notifyListeners();
+  }
+
   PersistentCanvas addLayer([int index]) {
-    PersistentCanvas topLayer = layer.last, ret = PersistentCanvas(
-      coordinates: topLayer.coordinates,
-      size: topLayer.size,
+    index = index ?? layer.length;
+    assert(index >= 0 && index <= layer.length);
+    PersistentCanvas prevLayer = layer[index == 0 ? index : index-1], ret = PersistentCanvas(
+      coordinates: prevLayer.coordinates,
+      size: prevLayer.size,
       busy: busy,
     );
-    layer.add(ret);
-    busy.reset();
+    layer.insert(index, ret);
+    notifyListeners();
     return ret;
+  }
+
+  void removeLayer([int index]) {
+    index = index ?? layer.length;
+    assert(index >= 0 && index <= layer.length);
+    layer.removeAt(index);
+    notifyListeners();
+  }
+
+  void swapLayer(int index1, int index2) {
+    assert(index1 != index2);
+    assert(index1 >=0 && index1 <= layer.length);
+    assert(index2 >=0 && index2 <= layer.length);
+    PersistentCanvas swap = layer[index1];
+    layer[index1] = layer[index2];
+    layer[index2] = swap;
+    notifyListeners();
+  }
+
+  void mergeLayer(int index1, int index2) {
+    assert(index1 != index2);
+    assert(index1 >=0 && index1 <= layer.length);
+    assert(index2 >=0 && index2 <= layer.length);
+    layer[index1].model.addImage(layer[index2].image);
+    layer.removeAt(index2);
+    notifyListeners();
   }
 }
 
@@ -74,8 +109,8 @@ class PersistentCanvasStackWidget extends StatelessWidget {
     }
 
     return Container(
-      width: layers.canvas.model.state.size.width,
-      height: layers.canvas.model.state.size.height,
+      width: layers.canvas.size.width,
+      height: layers.canvas.size.height,
       alignment: Alignment.topLeft,
       color: Colors.white,
       child: Stack(children: stack),

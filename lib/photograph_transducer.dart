@@ -80,7 +80,7 @@ class PhotographTransducer extends Model {
     version = 0;
     input = <Input>[];
     if (image != null) {
-      addRedraw(image, reseting: true);
+      addImage(image, reseting: true);
       state = PixelBuffer.fromImage(image, version);
       notifyListeners();
     } else {
@@ -137,7 +137,7 @@ class PhotographTransducer extends Model {
     }
   }
 
-  void addRedraw(ui.Image image, {reseting = false}) {
+  void addImage(ui.Image image, {reseting = false}) {
     final Paint paint = orthogonalState.paint;
     addInput(Input(
         (Canvas canvas, Size size, Object x) =>

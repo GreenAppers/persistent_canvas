@@ -222,7 +222,7 @@ class PixelBufferImageProvider extends ImageProvider<PixelBufferImageProvider> {
 
   @override
   ImageStreamCompleter load(PixelBufferImageProvider key) {
-    if (key.pixelBuffer.uploaded != null) key.pixelBuffer._broadcastUploaded();
+    //if (key.pixelBuffer.uploaded != null) key.pixelBuffer._broadcastUploaded();
     return key.pixelBuffer;
   }
 }
